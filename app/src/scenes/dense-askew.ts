@@ -21,7 +21,7 @@ import { Lyrics, type Line, type Word } from '../engine/lyrics';
 import type { AudioData } from '../engine/audio';
 import type { PostOverrides } from '../engine/scene';
 import { clamp, ease, hash, lerp, prog, pulse, springStep, frameIdx } from '../engine/util';
-import { drawMask2D } from './_motifs';
+import { drawMuseChar2D } from './_motifs';
 import { beatsIn } from './stack-kit';
 
 const NT = 16; // tentacles
@@ -312,7 +312,11 @@ export class Askew {
     this.applyCam(c, { roll, zoom, pan }, shake);
     this.drawHorizon(c, t);
     this.drawBoxes(c, t, m);
-    drawMask2D(c, m.x, m.y, MR, m.a);
+    // Muse herself rides the table now (was the mask disc): same centre, spin and
+    // slide from maskState — her centre is the disc's centre, her height its diameter,
+    // so her feet touch the horizon exactly where the disc did. She frowns while the
+    // reward is in the gutter (after the edge slip, until the whip throws her back).
+    drawMuseChar2D(c, m.x, m.y, MR * 2, { rot: m.a, mouth: t >= this.bE && t < this.bW ? 'frown' : 'smile' });
     this.drawRLHF(c, t, roll);
     this.drawGoes(c, t, roll);
     this.drawAskew(c, t, lean, roll, 0);

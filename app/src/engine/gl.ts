@@ -8,9 +8,11 @@ export { SCALE };
 /** Logical canvas: scenes lay out in these px at every output scale. */
 export const W = 1920;
 export const H = 1080;
-/** Physical (output) size: the logical canvas times SCALE (`?scale=2` → 3840x2160). */
-export const PW = W * SCALE;
-export const PH = H * SCALE;
+/** Physical (output) size: the logical canvas times SCALE (`?scale=2` → 3840x2160).
+ * Rounded: SCALE is quantized in scale.ts so these are already integers, but keep the
+ * round so a fractional SCALE can never leak a fractional pixel size downstream. */
+export const PW = Math.round(W * SCALE);
+export const PH = Math.round(H * SCALE);
 
 /**
  * Supersampling shared across motion-blur sub-frames. Shaders that supersample internally with the

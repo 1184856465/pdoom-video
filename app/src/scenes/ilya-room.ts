@@ -10,6 +10,7 @@ import { F, font } from '../engine/type';
 import { clamp, ease, hash, keys, lerp, noise1, prog, smoothstep, TAU } from '../engine/util';
 import type { LineBatch } from '../engine/lines';
 import { FRAG_ILYA, ILYA } from './ilya-glsl';
+import { drawMuseChar2D } from './_motifs';
 import { unicorn } from './open-geo';
 
 export type V3 = [number, number, number];
@@ -156,13 +157,12 @@ export class IlyaRoom {
       c.letterSpacing = '0px';
       c.fillStyle = 'rgba(255,255,255,0.22)'; c.beginPath(); c.moveTo(270, -86); c.lineTo(222, -86); c.lineTo(270, -40); c.closePath(); c.fill();
     });
-    // the mask (see: the shoggoth)
+    // Muse (see: the shoggoth) — the full-body sticker: the whole little cream
+    // creature, die-cut, drawn by the shared character routine in _motifs
     at(1150, 300, 0.12, () => {
-      shadow(); c.beginPath(); c.arc(0, 0, 150, 0, TAU); c.fillStyle = bone; c.fill(); noShadow();
-      c.fillStyle = ink;
-      c.beginPath(); c.arc(-52, -36, 17, 0, TAU); c.arc(52, -36, 17, 0, TAU); c.fill();
-      c.lineWidth = 15; c.lineCap = 'round'; c.strokeStyle = ink;
-      c.beginPath(); c.arc(0, 8, 78, 0.18 * Math.PI, 0.82 * Math.PI); c.stroke();
+      shadow();
+      drawMuseChar2D(c, 0, 0, 330, { mouth: 'smile' });
+      noShadow();
     });
     // the TikZ unicorn, die-cut
     at(360, 690, 0.05, () => {

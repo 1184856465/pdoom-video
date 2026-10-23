@@ -1,5 +1,5 @@
 import { LIN } from '../palette';
-import { SCALE } from '../scale';
+import { SCALE, SCALE_GLSL } from '../scale';
 
 const v3 = (c: [number, number, number]) => `vec3(${c.map((x) => x.toFixed(5)).join(',')})`;
 
@@ -13,7 +13,7 @@ export const GLSL_COMMON = /* glsl */ `
 // Output scale: physical px per logical (1920x1080) px. gl_FragCoord, fwidth and dFdx are in
 // physical px; FRAG_PX is the fragment's position in logical px (use it for anything that is
 // meant to be N logical px: grain/dither cells, hatch spacing, pixel-snapped patterns).
-const float PX_SCALE = ${SCALE.toFixed(1)};
+const float PX_SCALE = ${SCALE_GLSL};
 #define FRAG_PX (gl_FragCoord.xy / PX_SCALE)
 const vec3 C_INK = ${v3(LIN.ink)};
 const vec3 C_INK2 = ${v3(LIN.ink2)};
@@ -118,16 +118,16 @@ float _boxLine(float x, float m, float r) { r = max(r, 1e-6); return sat((min(x 
  * Identical at output scale 1; at higher scales the line keeps its 1x ink (PX_SCALE times wider in
  * physical px) with an edge ramp of (b - a) physical px, i.e. the same look, sharper.
  */
-${SCALE === 1 ? `float pxLine(float d, float a, float b) { return 1.0 - smoothstep(a, b, d); }` : `float pxLine(float d, float a, float b) { return _boxLine(d, _inkHalfWidth(a, b, 1e9) * PX_SCALE, 0.5 * (b - a)); }`}
+${SCALE <= 1 ? `float pxLine(float d, float a, float b) { return 1.0 - smoothstep(a, b, d); }` : `float pxLine(float d, float a, float b) { return _boxLine(d, _inkHalfWidth(a, b, 1e9) * PX_SCALE, 0.5 * (b - a)); }`}
 /** Same for the linear-ramp idiom sat((hw - d) / aa + 0.5): a line of half-width hw, ramp aa = k * fwidth. */
-${SCALE === 1 ? `float rampLine(float d, float hw, float aa) { return sat((hw - d) / aa + 0.5); }` : `float rampLine(float d, float hw, float aa) {
+${SCALE <= 1 ? `float rampLine(float d, float hw, float aa) { return sat((hw - d) / aa + 0.5); }` : `float rampLine(float d, float hw, float aa) {
   float aL = aa * PX_SCALE, e = max(hw + 0.5 * aL, 0.0);
   return _boxLine(d, hw >= 0.5 * aL ? hw : e * e / (2.0 * aL), 0.5 * aa);
 }`}
 /** Anti-aliased coverage of a distance field (d<0 inside) using screen derivatives. */
 float aaFill(float d) { float w = fwidth(d); return 1.0 - smoothstep(-w, w, d); }
 /** Anti-aliased stroke of width wd around the zero set of d. */
-${SCALE === 1 ? `float aaStroke(float d, float wd) { float w = fwidth(d); return 1.0 - smoothstep(wd * 0.5 - w, wd * 0.5 + w, abs(d)); }` : `float aaStroke(float d, float wd) { float w = fwidth(d); return _boxLine(abs(d), _inkHalfWidth(wd * 0.5 - w * PX_SCALE, wd * 0.5 + w * PX_SCALE, 1e9), w); }`}
+${SCALE <= 1 ? `float aaStroke(float d, float wd) { float w = fwidth(d); return 1.0 - smoothstep(wd * 0.5 - w, wd * 0.5 + w, abs(d)); }` : `float aaStroke(float d, float wd) { float w = fwidth(d); return _boxLine(abs(d), _inkHalfWidth(wd * 0.5 - w * PX_SCALE, wd * 0.5 + w * PX_SCALE, 1e9), w); }`}
 
 /**
  * Engraving hatch: parallel lines along coordinate u (lines at integer u),
@@ -139,7 +139,7 @@ float hatchD(float u, float darkness, float du) {
   float f = abs(fract(u) - 0.5);            // 0 at line centre ... 0.5 between lines
   float half_w = 0.5 * sat(darkness);       // half line width in u-units
   float aa = max(du, 1e-4);
-${SCALE === 1 ? `  return 1.0 - smoothstep(half_w - aa, half_w + aa, 0.5 - f);` : `  // keep the ink the 1x footprint puts down per period; draw it with the sharper physical footprint
+${SCALE <= 1 ? `  return 1.0 - smoothstep(half_w - aa, half_w + aa, 0.5 - f);` : `  // keep the ink the 1x footprint puts down per period; draw it with the sharper physical footprint
   float aaL = aa * PX_SCALE, x = 0.5 - f, m = _inkHalfWidth(half_w - aaL, half_w + aaL, 0.5);
   return min(_boxLine(x, m, aa) + _boxLine(1.0 - x, m, aa), 1.0);`}
 }

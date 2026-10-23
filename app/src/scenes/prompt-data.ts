@@ -16,7 +16,7 @@ export interface PieceSpec {
 export const SPECS: Record<Variant, Record<string, PieceSpec[]>> = {
   chatgpt: {
     chatgpt: [
-      { s: 'Chat', dist: [['Chat', 0.61], ['Claude', 0.12], ['Siri', 0.04], ['Mom', 0.02]] },
+      { s: 'Chat', dist: [['Chat', 0.61], ['Muse', 0.12], ['Siri', 0.04], ['Mom', 0.02]] },
       { s: 'G', dist: [['G', 0.74], ['bot', 0.09], ['room', 0.06], ['roulette', 0.02]] },
       { s: 'P', dist: [['P', 0.97], ['PU', 0.02]] },
       { s: 'T,', dist: [['T', 0.992], ['T-800', 0.003]] },

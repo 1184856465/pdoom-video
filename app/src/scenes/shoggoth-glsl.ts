@@ -387,6 +387,16 @@ void main() {
       float ink = sdMaskInk(ml);
       float fi = fwidth(ink);
       maskCol = mix(maskCol, C_INK, 1.0 - smoothstep(-fi, fi, ink));
+      // Muse additions (safe overlays on the face plate; the SDF silhouette and
+      // feature positions are untouched): glossy eye highlights, and ember
+      // halftone blush dots on the cheeks (the avatar's pink, in palette).
+      float gloss = min(length(ml - vec2(-0.30 - 0.036, -0.16 - 0.038)), length(ml - vec2(0.30 - 0.036, -0.16 - 0.038))) - 0.032;
+      maskCol = mix(maskCol, C_BONE * 1.05, (1.0 - smoothstep(-fi, fi, gloss)) * 0.92);
+      vec2 bq = vec2(abs(ml.x) - 0.52, ml.y - 0.17);
+      float cheek = 1.0 - smoothstep(0.15, 0.19, length(bq * vec2(1.0, 1.15)));
+      vec2 hg = fract(ml * 15.0) - 0.5;
+      float hdot = (1.0 - smoothstep(0.26, 0.36, length(hg))) * cheek;
+      maskCol = mix(maskCol, C_EMBER, hdot * 0.5 * step(0.0, ink));
       maskA *= mVis;
     }
   }

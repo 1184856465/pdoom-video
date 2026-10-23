@@ -22,8 +22,11 @@ const mode = argv[0] ?? 'stills';
 const opt = (k: string, d?: string) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : d; };
 const flag = (k: string) => argv.includes(`--${k}`);
 const APP = path.resolve(import.meta.dir, '..');
-const SCALE = Math.max(1, Math.round(+opt('scale', '1')!));
-const OW = 1920 * SCALE, OH = 1080 * SCALE; // output size
+// Fractional scales supported (Muse adaptation): --scale 0.6667 -> 1280x720 true render.
+// The page quantizes the same value to an integer pixel count (see src/engine/scale.ts),
+// so OW/OH here and PW/PH in the page agree.
+const SCALE = Math.min(4, Math.max(0.25, +opt('scale', '1')! || 1));
+const OW = Math.round(1920 * SCALE), OH = Math.round(1080 * SCALE); // output size
 // --samples N (fixed) or --samples auto [--min-samples 4] [--max-samples 324] [--tol 3] [--refine tiles|frame]
 // (adaptive, see Engine.render)
 const SAMPLES = opt('samples', '1') === 'auto'
@@ -41,17 +44,37 @@ async function ensureServer(): Promise<{ url: string; stop: () => void }> {
   if (await reachable(url)) return { url, stop: () => {} };
   const port = 5300 + Math.floor(Math.random() * 500);
   // no live reload: a file saved mid-render must not reload the page
-  const proc = Bun.spawn(['bunx', 'vite', '--port', String(port), '--strictPort'], { cwd: APP, stdout: 'ignore', stderr: 'ignore', env: { ...process.env, PDOOM_NO_HMR: '1' } });
+  // (use this bun binary's `x` subcommand: some installs ship no separate `bunx` on PATH)
+  const proc = Bun.spawn([process.execPath, 'x', 'vite', '--port', String(port), '--strictPort'], { cwd: APP, stdout: 'ignore', stderr: 'ignore', env: { ...process.env, PDOOM_NO_HMR: '1' } });
   const u = `http://localhost:${port}`;
   for (let i = 0; i < 100 && !(await reachable(u)); i++) await Bun.sleep(100);
   return { url: u, stop: () => proc.kill() };
 }
 
 async function openPage(url: string) {
+  // Muse/Linux adaptation: prefer $PDOOM_CHROME, then playwright's bundled Chromium
+  // (install once with `bun x playwright-core install chromium`), then the system
+  // Meta Chromium at /opt/meta-chromium/chrome, else playwright's 'chrome' channel
+  // (original macOS behaviour).
+  // NOTE: /opt/meta-chromium/chrome (Chromium 152, hardened build) was tried first but
+  // rejects EVERY loopback navigation with ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS
+  // (its Local Network Access checks run in blocking mode; --disable-features and
+  // context permissions do not lift it), so it cannot load the local Vite server at
+  // all. The bundled Chromium (153) loads loopback fine, hence this order; set
+  // PDOOM_CHROME to force a specific binary.
+  let bundled = '';
+  try { bundled = chromium.executablePath(); } catch { bundled = ''; }
+  const chromePath = process.env.PDOOM_CHROME
+    || (bundled && existsSync(bundled) ? bundled : undefined)
+    || (existsSync('/opt/meta-chromium/chrome') ? '/opt/meta-chromium/chrome' : undefined);
+  const isLinux = process.platform === 'linux';
+  const angleArgs = isLinux
+    ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox', '--disable-dev-shm-usage']
+    : ['--use-angle=metal'];
   const browser = await chromium.launch({
-    channel: 'chrome',
+    ...(chromePath ? { executablePath: chromePath } : { channel: 'chrome' as const }),
     headless: !flag('headed'),
-    args: ['--use-angle=metal', '--enable-gpu-rasterization', '--ignore-gpu-blocklist', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'],
+    args: [...angleArgs, '--enable-gpu-rasterization', '--ignore-gpu-blocklist', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--disable-features=LocalNetworkAccessChecks,BlockInsecurePrivateNetworkRequests', '--allow-insecure-localhost'],
   });
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
   const logs: string[] = [];

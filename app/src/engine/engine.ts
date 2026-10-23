@@ -143,7 +143,10 @@ export class Engine {
     am.blendSrcAlpha = THREE.ZeroFactor; am.blendDstAlpha = THREE.OneFactor;
     // sampling error: per block of B x B physical px (2x2 logical), how far the displayed average moves when a
     // step's new sub-frames (2n, summed in b) are merged with the n before them (summed in a): 2/3 of the gap
-    const B = 2 * SCALE, ew = Math.ceil(PW / B), eh = Math.ceil(PH / B), R = 16;
+    // B is interpolated into GLSL as an int (loop bounds, ivec2 maths), so it must stay an
+    // integer >= 1: at SCALE <= 1 a "2 logical px" block is <= 2 physical px; round it
+    // (SCALE 2/3 -> B = 1, one physical px per error block; SCALE 1 -> 2, SCALE 2 -> 4, as before).
+    const B = Math.max(1, Math.round(2 * SCALE)), ew = Math.ceil(PW / B), eh = Math.ceil(PH / B), R = 16;
     const small = { depthBuffer: false, type: THREE.FloatType, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, pxScale: 1 } as const;
     this.errRT = makeRT(ew, eh, small);
     this.maxRT = makeRT(Math.ceil(ew / R), Math.ceil(eh / R), small);
